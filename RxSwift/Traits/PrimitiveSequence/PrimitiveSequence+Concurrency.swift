@@ -43,6 +43,23 @@ public extension PrimitiveSequenceType where Trait == SingleTrait {
             )
         }
     }
+
+    static func create<T>(subscribe: @escaping () async throws -> T) -> Single<T> {
+        return Single.create { observer in
+            let task = Task {
+                do {
+                    let element = try await subscribe()
+                    observer(.success(element))
+                } catch {
+                    observer(.failure(error))
+                }
+            }
+
+            return Disposables.create {
+                task.cancel()
+            }
+        }
+    }
 }
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
@@ -90,6 +107,25 @@ public extension PrimitiveSequenceType where Trait == MaybeTrait {
             )
         }
     }
+
+    static func create<T>(subscribe: @escaping () async throws -> T?) -> Maybe<T> {
+        return Maybe.create { observer in
+            let task = Task {
+                do {
+                    if let element = try await subscribe() {
+                        observer(.success(element))
+                    }
+                    observer(.completed)
+                } catch {
+                    observer(.error(error))
+                }
+            }
+
+            return Disposables.create {
+                task.cancel()
+            }
+        }
+    }
 }
 
 @available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
@@ -126,6 +162,23 @@ public extension PrimitiveSequenceType where Trait == CompletableTrait, Element 
                     disposable.dispose()
                 }
             )
+        }
+    }
+
+    static func create(subscribe: @escaping () async throws -> Void) -> Completable {
+        return Completable.create { observer in
+            let task = Task {
+                do {
+                    try await subscribe()
+                    observer(.completed)
+                } catch {
+                    observer(.error(error))
+                }
+            }
+
+            return Disposables.create {
+                task.cancel()
+            }
         }
     }
 }
